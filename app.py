@@ -14,6 +14,20 @@ import hashlib
 import bcrypt
 # BCrypt hashing function end
 
+# Argon2 hashing function start
+from argon2 import PasswordHasher
+from argon2.exceptions import VerifyMismatchError
+ph = PasswordHasher()
+def argon2_hash(password):
+    return ph.hash(password)
+def check_argon2_hash(password, hashed_password):
+    try:
+        return ph.verify(hashed_password, password)
+    except VerifyMismatchError:
+        return False
+    except Exception:
+        return False
+# Argon2 hashing function end
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your_secret_key'
@@ -59,7 +73,7 @@ def check_bcrypt_hash(password, hashed_password):
 # BCrypt hashing function end
 
 # Global variable for hash type
-HASH_TYPE = 'bcrypt' # 'default','md5','bcrypt'
+HASH_TYPE = 'argon2' # 'default','md5','bcrypt','argon2'
 
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -73,15 +87,22 @@ def register():
 
         if(HASH_TYPE == 'default'):
             hashed_password = generate_password_hash(password)
+            type = 'default'
 
         if(HASH_TYPE == 'md5'):
             hashed_password = md5_hash(password)
+            type = 'md5'
 
         if(HASH_TYPE == 'bcrypt'):
             hashed_password = bcrypt_hash(password)
+            type = 'bcrypt'
+
+        if(HASH_TYPE == 'argon2'):
+            hashed_password = argon2_hash(password)
+            type = 'argon2'
 
         cur = mysql.connection.cursor()
-        cur.execute("INSERT INTO users (username, password) VALUES (%s, %s)", (username, hashed_password))
+        cur.execute("INSERT INTO users (username, password) VALUES (%s, %s)", (username,hashed_password,type))
         mysql.connection.commit()
         cur.close()
 
@@ -131,7 +152,19 @@ def login():
             user = cur.fetchone()
             cur.close()
 
-            if user and check_bcrypt_hash(password, user['password']):  # Verify the password
+            if user and check_bcrypt_hash(password, user['password']):  
+                login_user(User(user['id'], user['username'], user['password']))
+                return redirect(url_for('dashboard'))
+            else:
+                flash("Invalid username or password", "danger")
+
+        if(HASH_TYPE == 'argon2'):
+            cur = mysql.connection.cursor()
+            cur.execute("SELECT * FROM users WHERE username = %s", (username,))
+            user = cur.fetchone()
+            cur.close()
+
+            if user and check_argon2_hash(password, user['password']):
                 login_user(User(user['id'], user['username'], user['password']))
                 return redirect(url_for('dashboard'))
             else:
