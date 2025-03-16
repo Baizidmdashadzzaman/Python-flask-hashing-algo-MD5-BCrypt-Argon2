@@ -1,4 +1,4 @@
-#pip install flask flask-mysql flask-wtf flask-login werkzeug bcrypt
+#pip install flask flask-mysql flask-wtf flask-login werkzeug bcrypt argon2-cffi
 
 from flask import Flask, render_template, request, redirect, url_for, flash
 from database import mysql, init_db
