@@ -47,15 +47,16 @@ def md5_hash(password):
 
 # BCrypt hashing function start
 def bcrypt_hash(password):
-    password_bytes = password.encode('utf-8')  
-    salt = bcrypt.gensalt()                    
-    hashed_password = bcrypt.hashpw(password_bytes, salt)  
-    return hashed_password 
+    password_bytes = password.encode('utf-8')  # Encode password to bytes
+    salt = bcrypt.gensalt()  # Generate a salt
+    hashed_password = bcrypt.hashpw(password_bytes, salt)  # Hash the password
+    return hashed_password  # Return hashed password as bytes
+
+# Function to check if entered password matches hashed password
 def check_bcrypt_hash(password, hashed_password):
-    if isinstance(hashed_password, str):
-        hashed_password = hashed_password.encode('utf-8')
-    password_bytes = password.encode('utf-8')  
-    return bcrypt.checkpw(password_bytes, hashed_password)  
+    password_bytes = password.encode('utf-8')  # Encode entered password to bytes
+    return bcrypt.checkpw(password_bytes, hashed_password)  # Check if password matches hashed password
+
 # BCrypt hashing function end
 
 # Global variable for hash type
