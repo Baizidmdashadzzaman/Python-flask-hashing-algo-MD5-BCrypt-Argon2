@@ -1,5 +1,6 @@
 #pip install flask flask-mysql flask-wtf flask-login werkzeug
 
+import hashlib
 from flask import Flask, render_template, request, redirect, url_for, flash
 from database import mysql, init_db
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
@@ -29,6 +30,16 @@ def load_user(user_id):
         return User(user['id'], user['username'], user['password'])
     return None
 
+
+# MD5 hashing function start
+def md5_hash(password):
+    return hashlib.md5(password.encode()).hexdigest()
+# MD5 hashing function end
+
+# Global variable for hash type
+HASH_TYPE = 'md5' # 'default' or 'md5'
+
+
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if current_user.is_authenticated:
@@ -37,7 +48,12 @@ def register():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
-        hashed_password = generate_password_hash(password)
+
+        if(HASH_TYPE == 'default'):
+            hashed_password = generate_password_hash(password)
+
+        if(HASH_TYPE == 'md5'):
+            hashed_password = md5_hash(password)
 
         cur = mysql.connection.cursor()
         cur.execute("INSERT INTO users (username, password) VALUES (%s, %s)", (username, hashed_password))
@@ -58,18 +74,36 @@ def login():
         username = request.form['username']
         password = request.form['password']
 
-        cur = mysql.connection.cursor()
-        cur.execute("SELECT * FROM users WHERE username = %s", (username,))
-        user = cur.fetchone()
-        cur.close()
+        if(HASH_TYPE == 'default'):
+            cur = mysql.connection.cursor()
+            cur.execute("SELECT * FROM users WHERE username = %s", (username,))
+            user = cur.fetchone()
+            cur.close()
+        
+            if user and check_password_hash(user['password'], password):
+                login_user(User(user['id'], user['username'], user['password']))
+                return redirect(url_for('dashboard'))
+            else:
+                flash("Invalid username or password", "danger")
 
-        if user and check_password_hash(user['password'], password):
-            login_user(User(user['id'], user['username'], user['password']))
-            return redirect(url_for('dashboard'))
-        else:
-            flash("Invalid username or password", "danger")
+        if(HASH_TYPE == 'md5'):
+            hashed_password = md5_hash(password)
+
+            cur = mysql.connection.cursor()
+            cur.execute("SELECT * FROM users WHERE username = %s AND password = %s", (username, hashed_password))
+            user = cur.fetchone()
+            cur.close()
+
+            if user:
+                login_user(User(user['id'], user['username'], user['password']))
+                return redirect(url_for('dashboard'))
+            else:
+                flash("Invalid username or password", "danger")        
 
     return render_template('login.html')
+
+
+
 
 @app.route('/dashboard')
 @login_required
